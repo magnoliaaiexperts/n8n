@@ -1,0 +1,4 @@
+{"__type":"$$EventMessageAudit","id":"cc779f4e-44bd-4bce-83c6-bf0e40105bd8","ts":"2025-06-19T07:27:03.808-05:00","eventName":"n8n.audit.user.login.failed","message":"n8n.audit.user.login.failed","payload":{"authenticationMethod":"email","userEmail":"info@magnoliaaiexperts.com","reason":"wrong credentials"}}
+{"__type":"$$EventMessageConfirm","confirm":"cc779f4e-44bd-4bce-83c6-bf0e40105bd8","ts":"2025-06-19T07:27:03.809-05:00","source":{"id":"0","name":"eventBus"}}
+{"__type":"$$EventMessageAudit","id":"e90c4aae-b4e2-408f-b509-5ab0633e36ac","ts":"2025-06-19T07:28:01.132-05:00","eventName":"n8n.audit.user.login.failed","message":"n8n.audit.user.login.failed","payload":{"authenticationMethod":"email","userEmail":"anna@magnoliaaiexperts.com","reason":"wrong credentials"}}
+{"__type":"$$EventMessageConfirm","confirm":"e90c4aae-b4e2-408f-b509-5ab0633e36ac","ts":"2025-06-19T07:28:01.132-05:00","source":{"id":"0","name":"eventBus"}}

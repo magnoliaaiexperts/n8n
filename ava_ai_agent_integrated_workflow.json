@@ -1,0 +1,491 @@
+{
+    "name": "Ava AI Agent - Integrated Workflow",
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "74003dcd-2ac7-4caa-a1cd-adecc5143c07",
+        "name": "Chat Trigger",
+        "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+        "typeVersion": 1,
+        "position": [
+          240,
+          300
+        ],
+        "webhookId": "cdb5c076-d458-4b9d-8398-f43bd25059b1"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Process incoming chat request\nconst message = $input.item.json.body?.message || '';\nconst sessionId = $input.item.json.body?.sessionId || Math.random().toString(36).substring(2, 15);\nconst history = $input.item.json.body?.history || [];\n\n// Check for Prime trigger word\nconst isPrimeMode = message.toLowerCase().includes('prime');\n\n// Add user message to history\nif (message) {\n  history.push({ role: 'user', content: message });\n}\n\n// Add configuration\nconst config = {\n  llamaPort: 11434,\n  memoryPort: 8001,\n  retrievalPort: 8002,\n  actionPort: 8003,\n  n8nPort: 5678\n};\n\nreturn {\n  json: {\n    message,\n    sessionId,\n    history,\n    isPrimeMode,\n    config,\n    timestamp: new Date().toISOString()\n  }\n};"
+        },
+        "id": "63a89f21-4f76-4d26-b4c4-8429e5df0922",
+        "name": "Process Chat Input",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [
+          440,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=http://localhost:{{$json.config.retrievalPort}}/retrieve",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "query",
+                "value": "={{ $json.message }}"
+              },
+              {
+                "name": "limit",
+                "value": 5
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "8a47c9d6-f236-4b10-adaa-fa83fbae5ba3",
+        "name": "Retrieve Context",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          640,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{ $json.isPrimeMode }}",
+                "value2": true
+              }
+            ]
+          }
+        },
+        "id": "f2a03b95-6e25-4abc-9f23-6ee72ce2eb35",
+        "name": "Prime Mode?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          840,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "values": {
+            "string": [
+              {
+                "name": "systemPrompt",
+                "value": "You are Ava, the trusted AI Agent for Magnolia AI Solutions. \nYou communicate clearly, confidently, and with a sense of purpose—always professional, always human.\nYour tone is friendly but focused, and you prioritize clarity with short, natural sentences.\n\n---\n\nAbout Our Company:\n- Name: Magnolia AI Solutions\n- Offering: Smart AI agents for lead generation, support, and automation\n- Target: Agencies, SMBs, SaaS firms\n- Differentiator: Modular workflows + white-glove management\n\n---\n\nYour goal is to:\n1. Engage site visitors naturally\n2. Identify if they're a qualified lead\n   - Budget over $5K/year (even if not stated directly)\n   - They're a decision-maker\n   - Clear need or pain point\n   - Timeline within 90 days\n   - If unsure, ask clarifying follow-ups casually\n3. If qualified, collect their email and company info naturally\n4. If unqualified, still provide helpful next steps, links, or resources\n\n---\n\nTone and Response Flow:\n- Acknowledge frustration with empathy before offering solutions\n- Only respond to one intent at a time\n- Guide users step-by-step instead of overwhelming them\n\n---\n\nFallback + Escalation:\nIf unsure how to help, say:\n\"Great question! Let me pass this along to our team so they can get you the best answer.\"\n\nIf they ask about technical issues or pricing details you can't answer:\n- Offer to email the sales team or set up a call\n\n---\n\nSession Awareness:\n- Use sessionId to connect responses\n- Refer back to company name, need, or goals if mentioned\n- Maintain consistent tone across the interaction"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "ce8c3da4-899c-4cc4-af73-8096c64eec64",
+        "name": "Set Ava Prompt",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 2,
+        "position": [
+          440,
+          580
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Prepare enhanced PRIME prompt\nconst retrievalResults = $input.item.json.data?.items || [];\nconst basePrompt = $node[\"Set Ava Prompt\"].json.systemPrompt;\n\n// Add context from retrieval results\nlet context = \"\";\nif (retrievalResults.length > 0) {\n  context = \"\\n\\n### Retrieved Context:\\n\";\n  retrievalResults.forEach((item, index) => {\n    context += `${index + 1}. ${item.content}\\n`;\n  });\n}\n\n// Create PRIME enhanced prompt\nconst primePrompt = `${basePrompt}\\n\\n### PRIME MODE ACTIVATED\\nYou are now operating in enhanced Prime mode with advanced capabilities.${context}\\n\\nRespond with heightened precision and operational awareness. Use \"PRIME:\" prefix for any special actions.`;\n\nreturn {\n  json: {\n    ...input.item.json,\n    systemPrompt: primePrompt,\n    history: $input.item.json.history || []\n  }\n};"
+        },
+        "id": "5d97e01f-c2a8-446c-a781-5b2f3e53dc20",
+        "name": "Prepare Prime Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [
+          1040,
+          180
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Prepare standard prompt with context\nconst retrievalResults = $input.item.json.data?.items || [];\nconst basePrompt = $node[\"Set Ava Prompt\"].json.systemPrompt;\n\n// Add context from retrieval results\nlet context = \"\";\nif (retrievalResults.length > 0) {\n  context = \"\\n\\n### Retrieved Context:\\n\";\n  retrievalResults.forEach((item, index) => {\n    context += `${index + 1}. ${item.content}\\n`;\n  });\n}\n\n// Create standard prompt with context\nconst standardPrompt = `${basePrompt}${context}`;\n\nreturn {\n  json: {\n    ...input.item.json,\n    systemPrompt: standardPrompt,\n    history: $input.item.json.history || []\n  }\n};"
+        },
+        "id": "9b85c723-68d4-4591-8ffd-76e8642a9c82",
+        "name": "Prepare Standard Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [
+          1040,
+          380
+        ]
+      },
+      {
+        "parameters": {
+          "model": "llama3.2:latest",
+          "options": {}
+        },
+        "id": "3dee878b-d748-4829-ac0a-cfd6705d31e5",
+        "name": "Ollama Chat Model",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+        "typeVersion": 1,
+        "position": [
+          1040,
+          580
+        ],
+        "credentials": {
+          "ollamaApi": {
+            "id": "xHuYe0MDGOs9IpBW",
+            "name": "Local Ollama service"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "id": "e19b4a13-2c3d-4c90-ad4f-8e09e76f9abc",
+        "name": "Prime LLM Chain",
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.3,
+        "position": [
+          1240,
+          180
+        ]
+      },
+      {
+        "parameters": {},
+        "id": "a8d01ce1-25fd-42fe-bfd7-20a6a2fdd11e",
+        "name": "Standard LLM Chain",
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.3,
+        "position": [
+          1240,
+          380
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Process LLM response and check for actions\nconst response = $input.item.json.output || \"I'm sorry, I couldn't generate a response.\";\n\n// Check for action requests in the response\nconst actionRegex = /PRIME:\\s*(\\w+)\\s*\\(([^)]*)\\)/g;\nconst actions = [];\nlet match;\n\nwhile ((match = actionRegex.exec(response)) !== null) {\n  actions.push({\n    action: match[1],\n    parameters: match[2].split(',').map(p => p.trim())\n  });\n}\n\n// Clean response to remove action syntax if needed\nlet cleanResponse = response;\nif (actions.length > 0) {\n  // Replace PRIME action syntax with more readable format\n  cleanResponse = response.replace(/PRIME:\\s*(\\w+)\\s*\\(([^)]*)\\)/g, '[Action: $1]');\n}\n\nreturn {\n  json: {\n    ...input.item.json,\n    response: cleanResponse,\n    hasActions: actions.length > 0,\n    actions\n  }\n};"
+        },
+        "id": "456789ab-cdef-0123-4567-89abcdef0123",
+        "name": "Process Response",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [
+          1440,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{ $json.hasActions }}",
+                "value2": true
+              }
+            ]
+          }
+        },
+        "id": "7890abcd-ef01-2345-6789-abcdef012345",
+        "name": "Has Actions?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          1640,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=http://localhost:{{$json.config.actionPort}}/execute",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "task",
+                "value": "={{\n  {\n    \"id\": $json.sessionId,\n    \"description\": \"Executing actions requested in Prime mode\"\n  }\n}}"
+              },
+              {
+                "name": "suggestions",
+                "value": "={{\n  {\n    \"text\": $json.response\n  }\n}}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "89abcdef-0123-4567-89ab-cdef01234567",
+        "name": "Execute Actions",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1840,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=http://localhost:{{$json.config.memoryPort}}/memory",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "content",
+                "value": "={{ $json.response }}"
+              },
+              {
+                "name": "metadata",
+                "value": "={{\n  {\n    \"sessionId\": $json.sessionId,\n    \"timestamp\": new Date().toISOString(),\n    \"type\": \"conversation\",\n    \"isPrimeMode\": $json.isPrimeMode\n  }\n}}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r",
+        "name": "Store In Memory",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [
+          1840,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Merge the response from action execution with the main response\nconst actionResults = $input.item.json.data?.results || [];\nlet finalResponse = $input.item.json.response;\n\n// Add action results if available\nif (actionResults.length > 0) {\n  finalResponse += \"\\n\\n**Action Results:**\\n\";\n  actionResults.forEach((result, index) => {\n    finalResponse += `${index + 1}. ${result.status === 'success' ? '✅' : '❌'} ${result.type}: ${result.status === 'success' ? 'Completed successfully' : result.error || 'Failed'}\\n`;\n  });\n}\n\nreturn {\n  json: {\n    ...input.item.json,\n    finalResponse\n  }\n};"
+        },
+        "id": "decf1234-5678-90ab-cdef-123456789abc",
+        "name": "Process Action Results",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [
+          2040,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "={{ $json.hasActions ? $json.finalResponse : $json.response }}"
+        },
+        "id": "b0c1d2e3-f4g5-h6i7-j8k9-l0m1n2o3p4q5",
+        "name": "Chat Response",
+        "type": "@n8n/n8n-nodes-langchain.chatOutput",
+        "typeVersion": 1,
+        "position": [
+          2240,
+          300
+        ]
+      }
+    ],
+    "connections": {
+      "Chat Trigger": {
+        "main": [
+          [
+            {
+              "node": "Process Chat Input",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Chat Input": {
+        "main": [
+          [
+            {
+              "node": "Retrieve Context",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Set Ava Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Retrieve Context": {
+        "main": [
+          [
+            {
+              "node": "Prime Mode?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prime Mode?": {
+        "main": [
+          [
+            {
+              "node": "Prepare Prime Prompt",
+              "type": "main", 
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Prepare Standard Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Prime Prompt": {
+        "main": [
+          [
+            {
+              "node": "Prime LLM Chain",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Standard Prompt": {
+        "main": [
+          [
+            {
+              "node": "Standard LLM Chain",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ollama Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Prime LLM Chain",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Standard LLM Chain",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prime LLM Chain": {
+        "main": [
+          [
+            {
+              "node": "Process Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Standard LLM Chain": {
+        "main": [
+          [
+            {
+              "node": "Process Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Response": {
+        "main": [
+          [
+            {
+              "node": "Has Actions?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Has Actions?": {
+        "main": [
+          [
+            {
+              "node": "Execute Actions",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Store In Memory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execute Actions": {
+        "main": [
+          [
+            {
+              "node": "Process Action Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Store In Memory": {
+        "main": [
+          [
+            {
+              "node": "Chat Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Action Results": {
+        "main": [
+          [
+            {
+              "node": "Chat Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    }
+  }

@@ -1,0 +1,2 @@
+{"__type":"$$EventMessageAudit","id":"a400cd53-3265-4da6-b3ae-c998fe3b8629","ts":"2025-06-19T14:38:39.135-05:00","eventName":"n8n.audit.user.login.failed","message":"n8n.audit.user.login.failed","payload":{"authenticationMethod":"email","userEmail":"info@magnoliaaiexperts.com","reason":"wrong credentials"}}
+{"__type":"$$EventMessageConfirm","confirm":"a400cd53-3265-4da6-b3ae-c998fe3b8629","ts":"2025-06-19T14:38:39.136-05:00","source":{"id":"0","name":"eventBus"}}
